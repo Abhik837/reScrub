@@ -1,6 +1,6 @@
 # The website image for the local Docker stack (docker-compose.local.yml). A self-hosted web server
 # runs `npm run build && npm start` under pm2 instead (docs/DEPLOY.md).
-FROM node:24-slim AS build
+FROM node:25-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -10,7 +10,7 @@ ARG NEXT_PUBLIC_API_BASE_URL=/api
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL NEXT_TELEMETRY_DISABLED=1
 RUN npm run build && npm prune --omit=dev
 
-FROM node:24-slim
+FROM node:25-slim
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 COPY --from=build --chown=node /app/package.json /app/next.config.ts ./

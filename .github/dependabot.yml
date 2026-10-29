@@ -1,0 +1,42 @@
+version: 2
+# One grouped PR per ecosystem per week. Major versions get their own PRs (they can break
+# things CI doesn't build, like the GPU image), and a few are skipped entirely; see below.
+updates:
+  - package-ecosystem: npm
+    directory: /web
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+    groups:
+      web:
+        update-types: [minor, patch]
+    ignore:
+      # typescript-eslint (used by eslint-config-next) doesn't support TypeScript 7 yet.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: pip
+    directory: /backend
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+    groups:
+      backend:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directory: /backend
+    schedule: { interval: weekly }
+    ignore:
+      # The GPU image is upgraded by hand after testing on the GPU server (docs/DEPLOY.md).
+      - dependency-name: pytorch/pytorch
+        update-types: [version-update:semver-major, version-update:semver-minor]
+
+  - package-ecosystem: docker
+    directory: /web
+    schedule: { interval: weekly }
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      actions:
+        patterns: ["*"]

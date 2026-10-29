@@ -1,0 +1,23 @@
+# Run the local stack's worker on an NVIDIA GPU (Linux, or Windows WSL2, with the NVIDIA
+# Container Toolkit). Uses the same CUDA image as a self-hosted GPU server:
+#
+#   docker compose -f docker-compose.local.yml -f docker-compose.local.gpu.yml up --build
+
+services:
+  worker:
+    build:
+      context: backend
+      dockerfile: Dockerfile
+    image: rescrub-worker
+    command: ["python", "-m", "rescrub.worker"]
+    environment:
+      DEVICE: cuda:0
+      FRAME_STRIDE: ${FRAME_STRIDE:-1}
+    shm_size: 8gb
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

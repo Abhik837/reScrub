@@ -1,0 +1,27 @@
+# Surface + role config for the model trained on MM-OR (training/README.md).
+# Use it with:  SURFACE_CONFIG=config/surfaces_mmor.yaml
+#
+# Each `prompt` is a class name of rescrub-or-seg.pt (training/mmor_classes.yaml).
+# Change a designation here to re-label a class without retraining, e.g. set
+# secondary_table to sterile if it is draped in your room.
+# Earlier surfaces win where masks overlap: sterile first.
+model: trained/rescrub-or-seg.pt
+conf: 0.35
+iou_match: 0.3
+surfaces:
+  - {prompt: sterile_drape,        label: Sterile drape,        designation: sterile}
+  - {prompt: instrument_table,     label: Instrument table,     designation: sterile}
+  - {prompt: instrument,           label: Instrument,           designation: sterile}
+  - {prompt: tracker_array,        label: Tracker array,        designation: sterile}
+  - {prompt: robot_arm,            label: Robot,                designation: neutral}
+  - {prompt: patient,              label: Patient,              designation: patient}
+  - {prompt: secondary_table,      label: Secondary table,      designation: nonsterile}
+  - {prompt: operating_table,      label: Operating table,      designation: nonsterile}
+  - {prompt: anesthesia_equipment, label: Anesthesia equipment, designation: nonsterile}
+  - {prompt: robot_station,        label: Robot station,        designation: nonsterile}
+  - {prompt: monitor,              label: Monitor,              designation: nonsterile}
+  - {prompt: c_arm,                label: C-arm,                designation: nonsterile}
+# People: decides whether each tracked person is scrubbed (sterile) or not.
+people:
+  - {prompt: scrubbed_person,   label: Scrubbed,   designation: sterile}
+  - {prompt: unscrubbed_person, label: Unscrubbed, designation: nonsterile}

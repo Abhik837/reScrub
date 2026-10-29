@@ -1,0 +1,79 @@
+# How MM-OR / 4D-OR panoptic labels become reScrub training classes.
+#
+# MM-OR stores each segmentation mask as a PNG whose pixel value is the label
+# below (see MM-OR panoptic_segmentation/datasets/or_dataset.py, TRACK_TO_METAINFO).
+#
+# kind:
+#   surface  -> something a hand can touch; becomes a sterile/nonsterile/patient surface
+#   person   -> a staff member; tells the tracker whether that person is scrubbed
+#   ignore   -> not used for training
+#
+# designation follows standard OR asepsis practice (AORN), checked against every
+# sterility-breach label in MM-OR (training/README.md "What is sterile in an OR"):
+#   sterile    - scrubbed staff may touch it; unscrubbed contact is a breach
+#   nonsterile - unscrubbed staff may touch it; scrubbed contact is a breach
+#   patient    - breach only when touched by unscrubbed staff (MM-OR labels it so)
+#   neutral    - never a breach on its own (e.g. the robot, operated by both groups) Designations are NOT baked into the model: the
+# model learns `train_class`, and config/surfaces_mmor.yaml maps each class to a
+# designation at inference time, so a class can be re-designated without retraining.
+
+labels:
+  1:  {mmor: instrument_table,  train_class: instrument_table,     kind: surface, designation: sterile}     # draped back table with instruments
+  2:  {mmor: ae,                train_class: anesthesia_equipment, kind: surface, designation: nonsterile}
+  3:  {mmor: ot,                train_class: operating_table,      kind: surface, designation: nonsterile}  # visible (undraped) parts of the table
+  4:  {mmor: mps_station,       train_class: robot_station,        kind: surface, designation: nonsterile}  # MAKO planning / camera station
+  5:  {mmor: patient,           train_class: patient,              kind: surface, designation: patient}     # exposed patient (outside the drapes)
+  6:  {mmor: drape,             train_class: sterile_drape,        kind: surface, designation: sterile}
+  7:  {mmor: anest,             train_class: unscrubbed_person,    kind: person,  designation: nonsterile}  # anaesthetist
+  8:  {mmor: circulator,        train_class: unscrubbed_person,    kind: person,  designation: nonsterile}  # circulating nurse
+  9:  {mmor: assistant_surgeon, train_class: scrubbed_person,      kind: person,  designation: sterile}
+  10: {mmor: head_surgeon,      train_class: scrubbed_person,      kind: person,  designation: sterile}
+  11: {mmor: mps,               train_class: unscrubbed_person,    kind: person,  designation: nonsterile}  # MAKO product specialist
+  12: {mmor: nurse,             train_class: scrubbed_person,      kind: person,  designation: sterile}     # scrub nurse (separate from circulator)
+  13: {mmor: drill,             train_class: instrument,           kind: surface, designation: sterile}
+  15: {mmor: hammer,            train_class: instrument,           kind: surface, designation: sterile}
+  16: {mmor: saw,               train_class: instrument,           kind: surface, designation: sterile}
+  17: {mmor: tracker,           train_class: tracker_array,        kind: surface, designation: sterile}     # navigation arrays fixed in the field
+  18: {mmor: mako_robot,        train_class: robot_arm,            kind: surface, designation: neutral}     # MM-OR never labels robot contact a breach (MPS operates it; surgeons guide the draped arm)
+  24: {mmor: monitor,           train_class: monitor,              kind: surface, designation: nonsterile}
+  25: {mmor: c_arm,             train_class: c_arm,                kind: surface, designation: nonsterile}
+  26: {mmor: unrelated_person,  train_class: unscrubbed_person,    kind: person,  designation: nonsterile}
+  27: {mmor: student,           train_class: unscrubbed_person,    kind: person,  designation: nonsterile}  # observers are not scrubbed in MM-OR
+  28: {mmor: secondary_table,   train_class: secondary_table,      kind: surface, designation: nonsterile}  # check your footage: set sterile if it is draped
+  29: {mmor: cementer,          train_class: instrument,           kind: surface, designation: sterile}
+
+# MM-OR's loader treats these as annotation mistakes; skip them.
+ignore_labels: [14, 19, 20, 22, 23]
+
+# Object names used in MM-OR / 4D-OR relation labels (scene graphs) -> designation.
+# Used by export_contacts.py to turn "circulator touching instrument_table" into
+# a ground-truth contact event.
+relation_entities:
+  head_surgeon: sterile
+  assistant_surgeon: sterile
+  nurse: sterile
+  circulator: nonsterile
+  anaesthetist: nonsterile
+  mps: nonsterile
+  student: nonsterile
+  patient: patient
+  instrument_table: sterile
+  drape: sterile
+  secondary_table: nonsterile
+  instrument: sterile
+  drill: sterile
+  saw: sterile
+  hammer: sterile
+  cementer: sterile
+  tracker: sterile
+  mako_robot: neutral
+  operating_table: nonsterile
+  anesthesia_equipment: nonsterile
+  mps_station: nonsterile
+  c_arm: nonsterile
+  monitor: nonsterile
+  object: unknown
+
+# Predicates that mean physical contact (vs. closeTo, lyingOn, assisting...).
+contact_predicates: [touching, holding, manipulating, cutting, drilling, sawing, hammering, suturing, cementing,
+                     cleaning, preparing, calibrating, scanning]

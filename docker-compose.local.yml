@@ -1,0 +1,153 @@
+# reScrub on one computer: website, API, worker, database and storage. Only Docker is needed.
+#
+#   cp .env.example .env                                   # optional: Gemini key, admin email
+#   docker compose -f docker-compose.local.yml up --build
+#   docker compose -f docker-compose.local.yml logs init   # the admin password (first run only)
+#   open http://localhost:8080
+#
+# NVIDIA GPU (Linux or Windows WSL2 with the NVIDIA Container Toolkit): add
+#   -f docker-compose.local.gpu.yml
+# Full guide: docs/RUN_LOCAL.md. Hosting it on your own domain (Vultr + Tiger Cloud): docs/DEPLOY.md.
+
+name: rescrub
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql://postgres:postgres@db:5432/rescrub
+  STORAGE_BACKEND: local
+  LOCAL_STORAGE_DIR: /app/data
+  # Plain http://localhost: cookies can't be HTTPS-only here.
+  COOKIE_SECURE: "false"
+  CORS_ORIGINS: http://localhost:8080,http://127.0.0.1:8080
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
+  ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+  REGISTRATION_EMAIL_DOMAINS: ${REGISTRATION_EMAIL_DOMAINS:-}
+  CHECK_EMAIL_DNS: ${CHECK_EMAIL_DNS:-true}
+  UPLOADS_PER_DAY_PER_USER: ${UPLOADS_PER_DAY_PER_USER:-20}
+
+services:
+  db:
+    image: timescale/timescaledb-ha:pg17   # TimescaleDB + pgvector, like Tiger Cloud
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rescrub
+    volumes:
+      - pgdata:/home/postgres/pgdata/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "rescrub"]
+      interval: 60s
+      timeout: 3s
+      retries: 3
+      start_period: 120s
+      start_interval: 2s       # quick checks only while starting
+
+  # One-off: creates the schema and the first admin account, prints its password, then exits.
+  init:
+    build:
+      context: backend
+      dockerfile: Dockerfile.api
+    image: rescrub-api
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]            # runs as a non-root user on a high port; needs no Linux capabilities
+    environment:
+      <<: *backend-env
+      LOCAL_ADMIN_EMAIL: ${LOCAL_ADMIN_EMAIL:-admin@example.com}
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        python -m rescrub.init_db
+        python -m rescrub.accounts ensure "$$LOCAL_ADMIN_EMAIL"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    # Same image as init. The build section stops newer Compose versions from trying to pull it.
+    build:
+      context: backend
+      dockerfile: Dockerfile.api
+    image: rescrub-api
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]            # runs as a non-root user on a high port; needs no Linux capabilities
+    environment: *backend-env
+    volumes:
+      - recordings:/app/data
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+      start_interval: 2s
+
+  worker:
+    build:
+      context: backend
+      dockerfile: Dockerfile.cpu
+    image: rescrub-worker-cpu
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]            # runs as a non-root user on a high port; needs no Linux capabilities
+    environment:
+      <<: *backend-env
+      DEVICE: ${DEVICE:-auto}
+      # Faster on a laptop CPU: analyze every 2nd frame. Set FRAME_STRIDE=1 in .env for full detail.
+      FRAME_STRIDE: ${FRAME_STRIDE:-2}
+      # Empty = the trained models in backend/models/trained (all three ship with the repository).
+      POSE_MODEL: ${POSE_MODEL:-}
+      SURFACE_CONFIG: ${SURFACE_CONFIG:-}
+      EMBED_MODEL: ${EMBED_MODEL:-}
+      ENABLE_HANDS: ${ENABLE_HANDS:-true}
+      ENABLE_DEPTH: ${ENABLE_DEPTH:-true}
+    volumes:
+      - recordings:/app/data
+      - models:/models                                  # downloaded models, kept between runs
+      - ./backend/models/trained:/models/trained:ro      # the repository's trained models
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    stop_grace_period: 1m
+
+  web:
+    build:
+      context: web
+    image: rescrub-web
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]            # runs as a non-root user on a high port; needs no Linux capabilities
+    environment:
+      API_INTERNAL_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/login').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+      start_interval: 2s
+
+  proxy:
+    image: caddy:2
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./deploy/Caddyfile.local:/etc/caddy/Caddyfile:ro
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  recordings:
+  models:

@@ -1,0 +1,23 @@
+# torch / torchvision come from the Docker base image (CUDA build).
+# For local CPU development install them first: pip install torch torchvision
+ultralytics==8.4.181
+lap>=0.5.12
+# Pinned to a commit: a git dependency has no release to audit, so changes must be deliberate.
+clip @ git+https://github.com/ultralytics/CLIP.git@7ffa84b3bfa40c42ecc1c77147a855e69cb2dd40
+rtmlib==0.0.16
+# <1.27: from 1.27 the GPU build needs CUDA 13, but the base image (torch) is CUDA 12.6.
+# Raise this together with the base image; the Dockerfile checks that the two match.
+onnxruntime-gpu>=1.24.1,<1.27; platform_machine == "x86_64"
+transformers>=4.45
+opencv-python-headless>=5.0.0.93
+numpy>=2.2.6
+pyyaml>=6
+pydantic-settings>=2.4
+psycopg[binary,pool]>=3.2
+pgvector>=0.5.1
+boto3>=1.43.114
+fastapi>=0.143.1
+uvicorn[standard]>=0.54.0
+python-multipart>=0.0.32
+argon2-cffi>=25.1.0
+dnspython>=2.8

@@ -1,0 +1,24 @@
+# The local Docker stack (docker-compose.local.yml): the same routing as deploy/Caddyfile, over plain
+# HTTP on http://localhost:8080. /api/* goes to the API, everything else to the website.
+
+:80 {
+	encode zstd gzip
+	header -Server
+
+	handle_path /api/* {
+		request_body {
+			max_size 520MB
+		}
+		header {
+			X-Content-Type-Options nosniff
+			?Cache-Control "no-store"
+		}
+		reverse_proxy api:8000 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}

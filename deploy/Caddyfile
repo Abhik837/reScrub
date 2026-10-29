@@ -1,0 +1,38 @@
+# /etc/caddy/Caddyfile on the web server. One site: the website, with the API under /api
+# (same origin, so the sign-in cookie never crosses sites and no CORS is needed).
+# Caddy gets HTTPS certificates on its own once DNS points at this server.
+#
+# Install it with your domain (docs/DEPLOY.md, section 5):
+#   sed "s/example.com/your-domain.com/g" deploy/Caddyfile > /etc/caddy/Caddyfile
+
+www.example.com {
+	redir https://example.com{uri} permanent
+}
+
+example.com {
+	encode zstd gzip
+	header -Server
+
+	# API: FastAPI on 127.0.0.1:8000 (uvicorn --root-path /api).
+	handle_path /api/* {
+		# Same limit as the API (MAX_UPLOAD_MB=500) plus room for the form fields.
+		request_body {
+			max_size 520MB
+		}
+		header {
+			X-Content-Type-Options nosniff
+			# Default only; the labeled video keeps its own private caching.
+			?Cache-Control "no-store"
+		}
+		# Stream uploads and the labeled video. Caddy replaces any client-sent X-Forwarded-For
+		# with the real address (no trusted_proxies), which the API's rate limits rely on.
+		reverse_proxy 127.0.0.1:8000 {
+			flush_interval -1
+		}
+	}
+
+	# Website: Next.js on 127.0.0.1:3000 (it sets CSP, HSTS and the other security headers).
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+}

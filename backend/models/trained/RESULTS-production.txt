@@ -1,0 +1,71 @@
+{
+  "summary": {
+    "findings": 169,
+    "matched_findings": 3,
+    "breaches": 6,
+    "found_breaches": 3,
+    "precision": 0.01775147928994083,
+    "recall": 0.5,
+    "mean_onset_error_sec": 10.333333333333334,
+    "timestamp_problems": 0,
+    "tolerance_sec": 3.0
+  },
+  "videos": [
+    {
+      "video": "038_TKA_simstation0",
+      "duration_sec": 2876.0,
+      "findings": 169,
+      "labeled_breaches": 6,
+      "matched_findings": 3,
+      "found_breaches": 3,
+      "timestamp_problems": [],
+      "has_labels": true,
+      "labeled": [
+        {
+          "start": 228.0,
+          "end": 228.0,
+          "breaches": [
+            "anaesthetist manipulating drape"
+          ]
+        },
+        {
+          "start": 448.0,
+          "end": 466.0,
+          "breaches": [
+            "anaesthetist manipulating drape",
+            "circulator manipulating drape"
+          ]
+        },
+        {
+          "start": 1966.0,
+          "end": 1966.0,
+          "breaches": [
+            "mps preparing instrument_table"
+          ]
+        },
+        {
+          "start": 2128.0,
+          "end": 2135.0,
+          "breaches": [
+            "anaesthetist manipulating drape",
+            "mps manipulating drape"
+          ]
+        },
+        {
+          "start": 2146.0,
+          "end": 2165.0,
+          "breaches": [
+            "anaesthetist manipulating drape"
+          ]
+        },
+        {
+          "start": 2217.0,
+          "end": 2217.0,
+          "breaches": [
+            "circulator preparing instrument_table"
+          ]
+        }
+      ]
+    }
+  ]
+}

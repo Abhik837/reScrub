@@ -1,0 +1,19 @@
+.env
+data/
+# Downloaded base models stay out of git. The trained reScrub models in models/trained/ are
+# committed on purpose (see models/trained/README.md for the MM-OR terms that apply to them).
+models/*
+!models/trained/
+models/trained/*
+!models/trained/README.md
+!models/trained/RESULTS*.txt
+!models/trained/breach_params.json
+out/
+__pycache__/
+*.pyc
+.pytest_cache/
+mobileclip*.ts
+*.pt
+runs/
+*.onnx
+!models/trained/rescrub-*.pt

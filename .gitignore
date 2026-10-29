@@ -1,0 +1,20 @@
+# Secrets: never commit real environment files anywhere in this repo.
+# Put real values in .env / .env.local on your own machine or the server.
+.env
+.env.*
+*.env
+# ...but templates with placeholder values are fine to commit.
+!.env.example
+
+# Downloaded credential files (e.g. tiger-cloud-db-XXXX-credentials.txt/.env)
+*credentials*.txt
+*credentials*.env
+*.pem
+*.key
+
+# Local Claude app settings
+.claude/
+
+# OS clutter
+.DS_Store
+Thumbs.db

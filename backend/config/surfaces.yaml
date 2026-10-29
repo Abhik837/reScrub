@@ -1,0 +1,46 @@
+# Sterile / nonsterile surface labeling.
+#
+# Each entry is a text prompt for the open-vocabulary segmenter (YOLOE). The
+# label is what shows on the video and in the database; designation is what the
+# breach analysis reads. Order matters when masks overlap: earlier entries
+# win, so list sterile surfaces first (a drape lying on a table is the drape).
+#
+# To use a fine-tuned YOLO26-seg model instead, set `model` to its weights and
+# make each `prompt` match one of that model's class names exactly.
+#
+# A session can override all of this with hand-drawn zones (the `zones` upload
+# field, see README).
+model: yoloe-26s-seg.pt
+conf: 0.25
+iou_match: 0.3          # reuse a surface id across keyframes when masks overlap this much
+surfaces:
+  - prompt: surgical drape
+    label: Sterile drape
+    designation: sterile
+  - prompt: blue sterile drape
+    label: Sterile drape
+    designation: sterile
+  - prompt: surgical instrument tray
+    label: Instrument tray
+    designation: sterile
+  - prompt: surgical instrument
+    label: Instrument
+    designation: sterile
+  - prompt: mayo stand
+    label: Mayo stand
+    designation: sterile
+  - prompt: table
+    label: Table (undraped)
+    designation: nonsterile
+  - prompt: cart
+    label: Cart
+    designation: nonsterile
+  - prompt: floor
+    label: Floor
+    designation: nonsterile
+  - prompt: wall
+    label: Wall
+    designation: nonsterile
+  - prompt: medical equipment
+    label: Equipment
+    designation: nonsterile

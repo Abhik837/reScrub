@@ -1,0 +1,50 @@
+# Self-hosted servers (docs/DEPLOY.md) and training (docs/TRAINING.md). Pick the role with a profile:
+#
+#   Web server (API; the website and Caddy run on the host):
+#     docker compose --profile api up -d --build
+#   GPU server (analysis worker; also runs training):
+#     docker compose --profile worker up -d --build
+#
+# Both read backend/.env (database URL, bucket keys). To run everything on one computer, use
+# docker-compose.local.yml in the repository root instead.
+
+services:
+  api:
+    profiles: ["api"]
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: rescrub-api
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]            # runs as a non-root user on a high port; needs no Linux capabilities
+    env_file: .env
+    ports:
+      - "127.0.0.1:8000:8000"   # only the host's Caddy can reach it
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    profiles: ["worker"]
+    build: .
+    image: rescrub-worker
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]            # runs as a non-root user on a high port; needs no Linux capabilities
+    command: ["python", "-m", "rescrub.worker"]
+    env_file: .env
+    volumes:
+      - ${MODELS_HOST_DIR:-./models/trained}:/models/trained  # trained weights survive rebuilds
+      - ${DATA_HOST_DIR:-/mnt/data}:/data             # MM-OR + training runs
+    restart: unless-stopped
+    stop_grace_period: 2m       # lets the current job finish its batch
+    shm_size: 16gb              # PyTorch data loaders during training
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

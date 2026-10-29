@@ -1,0 +1,36 @@
+# Worker for computers without an NVIDIA GPU (the local Docker stack, docker-compose.local.yml).
+# Same code as ./Dockerfile (the CUDA image for the GPU server), with CPU builds of torch and
+# onnxruntime. Works on x86_64 and ARM (Apple Silicon). Models are downloaded on first start into
+# the `models` volume, so the image stays small and later starts are fast.
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    MODELS_DIR=/models \
+    YOLO_CONFIG_DIR=/models/ultralytics \
+    XDG_CACHE_HOME=/models/cache \
+    HF_HOME=/models/hf \
+    DEVICE=cpu
+# Large downloads (PyTorch, OpenCV) stall briefly on slow networks and under WSL 2; pip's default
+# 15 s timeout would abort the whole step.
+ENV PIP_DEFAULT_TIMEOUT=120 PIP_RETRIES=10 PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates ffmpeg git libgl1 libglib2.0-0 \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+# Same torch version as the GPU image's base (pytorch/pytorch:2.7.1), CPU build.
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch==2.7.1 torchvision==0.22.1
+COPY requirements.txt .
+# onnxruntime-gpu is for the GPU server; the CPU build runs the hand model here.
+RUN grep -v '^onnxruntime-gpu' requirements.txt > /tmp/requirements-cpu.txt \
+ && pip install --no-cache-dir -r /tmp/requirements-cpu.txt "onnxruntime>=1.24.1" \
+ && python -c "import onnxruntime as o; print(o.get_available_providers())"
+
+COPY rescrub ./rescrub
+COPY config ./config
+COPY db ./db
+
+RUN useradd --create-home --uid 1000 app && mkdir -p /app/data /models/trained && chown -R app /app /models
+USER app
+CMD ["python", "-m", "rescrub.worker"]

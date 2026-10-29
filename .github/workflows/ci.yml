@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: rescrub
+          POSTGRES_PASSWORD: rescrub
+          POSTGRES_DB: rescrub_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rescrub" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://rescrub:rescrub@localhost:5432/rescrub_test
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-api.txt
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg postgresql-client
+      - run: pip install -r requirements-api.txt pytest httpx "moto[s3]>=5" ruff
+      - run: ruff check --select E,F,W,I rescrub training tests
+      - run: pytest -q
+
+  web:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: /api
+      - run: npx tsc --noEmit
+      - run: npm audit --omit=dev --audit-level=high
+
+  # The one-command local stack (docs/RUN_LOCAL.md): every image builds, and the site, API,
+  # database and first admin account come up behind the local Caddy. The worker is built but
+  # not started (it downloads its models on first start).
+  local-stack:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker compose -f docker-compose.local.yml config -q
+      - run: docker compose -f docker-compose.local.yml -f docker-compose.local.gpu.yml config -q
+      # The documented one-command start (no separate build step, which hid a pull error before).
+      - run: docker compose -f docker-compose.local.yml up --build -d proxy
+      - name: Site, API and first admin account are up
+        run: |
+          for i in $(seq 60); do curl -sf -o /dev/null http://localhost:8080/login && break; sleep 3; done
+          curl -sf http://localhost:8080/api/health | grep -q '"ok":true'
+          curl -sf -o /dev/null http://localhost:8080/login
+          docker compose -f docker-compose.local.yml logs init | grep -q "Created admin admin@example.com"
+      - name: Sign-up, sign-in and sign-out work against the stack's database
+        run: |
+          site=http://localhost:8080
+          json=(-H "Origin: $site" -H "Content-Type: application/json")
+          account='{"email":"ci.check.user@gmail.com","password":"three unrelated words"}'
+          curl -sf -c jar "${json[@]}" -d "$account" $site/api/auth/register | grep -q '"role":"member"'
+          curl -sf -b jar $site/api/auth/me | grep -q ci.check.user@gmail.com
+          curl -sf -o /dev/null -b jar "${json[@]}" -X POST $site/api/auth/logout
+          test "$(curl -s -o /dev/null -w '%{http_code}' -b jar $site/api/auth/me)" = 401
+          curl -sf -c jar "${json[@]}" -d "$account" $site/api/auth/login | grep -q ci.check.user@gmail.com
+          test "$(curl -s -o /dev/null -w '%{http_code}' "${json[@]}" -d "$account" $site/api/auth/register)" = 409
+          curl -sf -b jar -o /dev/null $site/review   # the website sees the session too
+      - if: failure()
+        run: docker compose -f docker-compose.local.yml logs
+      - run: docker compose -f docker-compose.local.yml down -v
+
+  secrets:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Scan every commit on every branch for leaked secrets
+        run: |
+          curl -sSfL -o gitleaks.tgz https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz
+          echo "5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba  gitleaks.tgz" | sha256sum -c
+          tar xzf gitleaks.tgz gitleaks
+          git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
+          ./gitleaks git . --redact --log-opts="--all"

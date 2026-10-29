@@ -1,0 +1,156 @@
+@import "tailwindcss";
+
+/*
+  reScrub design tokens: warm ivory, the logo's forest green, and restrained
+  lavender accents taken from the logo's cutout.
+  Use them as Tailwind classes, e.g. bg-canvas, text-ink-muted, border-line,
+  bg-primary, text-accent, bg-accent-soft, text-flag, bg-amber-soft, text-ok.
+*/
+@theme inline {
+  --color-canvas: #f7f4ec;        /* warm ivory page */
+  --color-surface: #fffdf8;       /* panels */
+  --color-surface-sunken: #efebe1;
+  --color-ink: #15201b;           /* green-tinted charcoal text */
+  --color-ink-muted: #4f5a53;     /* secondary text, 6.9:1 on canvas */
+  --color-ink-faint: #67706a;     /* tertiary text, 4.8:1 */
+  --color-line: #e2ddd1;          /* fine borders */
+  --color-line-strong: #c9c2b2;
+
+  --color-primary: #033f2e;       /* logo forest green: main actions */
+  --color-primary-hover: #0a5641;
+  --color-primary-soft: #e1ebe5;
+
+  --color-accent: #5546b8;        /* lavender, darkened for text and focus (6.6:1) */
+  --color-accent-mark: #a598fa;   /* logo lavender: marks and highlights */
+  --color-accent-soft: #eeebfd;
+
+  --color-ok: #1d6a45;            /* "sterile" labels */
+  --color-ok-mark: #3fa673;
+  --color-ok-soft: #e4f2ea;
+
+  --color-amber: #7a5500;         /* uncertainty text */
+  --color-amber-mark: #e2ad3a;
+  --color-amber-soft: #f8eed5;
+
+  --color-flag: #a83a32;          /* flagged moments */
+  --color-flag-mark: #cf5146;
+  --color-flag-soft: #f7e3df;
+
+  --color-stage: #101713;         /* video stage */
+  --color-stage-raised: #18211c;
+  --color-stage-line: #2b3630;
+  --color-stage-text: #e9ece6;
+  --color-stage-muted: #a0aaa3;
+
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains);
+  --font-serif: var(--font-newsreader);
+}
+
+html {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "cv11", "ss03";
+}
+
+/* Editorial display headings. */
+.font-display {
+  font-family: var(--font-newsreader), Georgia, serif;
+  font-weight: 400;
+  font-optical-sizing: auto;
+}
+
+/* Small uppercase monospace labels, e.g. 01 · RECORDING */
+.eyebrow {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Timestamps line up when they change. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtle, consistent transitions. */
+a,
+button {
+  transition-property: color, background-color, border-color, box-shadow;
+  transition-duration: 150ms;
+}
+
+/* Visible keyboard focus everywhere (mouse clicks don't show it). */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.on-stage :focus-visible {
+  outline-color: var(--color-accent-mark);
+}
+
+/* Respect users who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Range input used as the timeline scrubber: thin track, invisible thumb. */
+.scrubber {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.scrubber::-webkit-slider-runnable-track {
+  height: 100%;
+  background: transparent;
+}
+.scrubber::-moz-range-track {
+  height: 100%;
+  background: transparent;
+}
+.scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 2px;
+  height: 100%;
+  background: transparent;
+}
+.scrubber::-moz-range-thumb {
+  width: 2px;
+  height: 100%;
+  border: 0;
+  background: transparent;
+}
+
+/* Indeterminate activity bar for analysis (no fake percentages). */
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+.indeterminate {
+  animation: indeterminate 1.6s ease-in-out infinite;
+}
+
+/* "Export review PDF" prints only components/PrintableReview.tsx (the workspace is print:hidden). */
+@media print {
+  @page {
+    margin: 16mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+}

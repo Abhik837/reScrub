@@ -1,7 +1,7 @@
 # The HTTP API only (no ML): runs on the small web server next to the website.
 opencv-python-headless>=5.0.0.93
 numpy>=2.2.6
-pyyaml>=6
+pyyaml>=6.0.3
 pydantic-settings>=2.4
 psycopg[binary,pool]>=3.2
 pgvector>=0.5.1

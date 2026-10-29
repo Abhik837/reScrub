@@ -1,6 +1,6 @@
 # torch / torchvision come from the Docker base image (CUDA build).
 # For local CPU development install them first: pip install torch torchvision
-ultralytics==8.4.181
+ultralytics==8.4.190
 lap>=0.5.12
 # Pinned to a commit: a git dependency has no release to audit, so changes must be deliberate.
 clip @ git+https://github.com/ultralytics/CLIP.git@7ffa84b3bfa40c42ecc1c77147a855e69cb2dd40

@@ -1,5 +1,5 @@
 # Small image for the HTTP API (web server). The GPU worker uses ./Dockerfile.
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 ENV PYTHONUNBUFFERED=1
 # Large downloads (PyTorch, OpenCV) stall briefly on slow networks and under WSL 2; pip's default
